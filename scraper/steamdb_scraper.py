@@ -17,164 +17,109 @@ class MonthlyPlayersSteamDBScraper:
     steamdb_pwd = os.getenv('STEAMDB_PWD')
 
     def __init__(self):
-        # Initialize the undetected_chromedriver WebDriver
-        options = uc.ChromeOptions()  # MODIFIED (or use webdriver.ChromeOptions() which uc usually accepts)
-        # options.add_argument('--headless')  # Headless with uc can be less effective against detection
-        # options.add_argument('--disable-gpu')
-        # If you want to use a specific browser version with uc (advanced):
-        # self.driver = uc.Chrome(options=options, version_main=114) # Example: use Chrome version 114
-        self.driver = uc.Chrome(options=options)  # MODIFIED
-        self.wait = WebDriverWait(self.driver, 20)  # Increased wait time for reliability
-        self.login()
-        self.search_game()
-        self.enter_franchise()
-        self.proccess_franchise()
+        options = uc.ChromeOptions()
+        self.driver = uc.Chrome(options=options)
+        self.wait = WebDriverWait(self.driver, 20)
+
+    def access_steamdb(self):
+        print("Accessing steamdb.info...")
+        self.driver.get("https://steamdb.info/")
+
+        input("Resolva o captch e pressione Enter para continuar...")
+        return
+
+    def check_logged(self):
+        # Check if already logged in by looking for the cookie
+        if self.driver.get_cookie("__Host-steamdb"):
+            print("Você já está logado.")
+            return True
+        return False
+
+    def handle_header_login(self):
+        # Click on the login link
+        login_link = self.wait.until(EC.element_to_be_clickable((By.CLASS_NAME, "header-login")))
+        login_link.click()
+        print("Clicked header login link.")
+
+    def click_sign_in_via_steam(self):
+        try:
+            sign_in_button = self.wait.until(EC.element_to_be_clickable((By.ID, "js-sign-in")))
+            sign_in_button.click()
+            print("Clicked 'Sign in via Steam' button (js-sign-in).")
+        except TimeoutException:
+            print(
+                "Could not find or click 'js-sign-in' button. Page structure might have changed or CAPTCHA interference.")
+            raise TimeoutException("Could not find or click 'js")
+
+    def fill_steam_credentials(self):
+        try:
+            self.wait.until(EC.presence_of_element_located((By.CSS_SELECTOR, 'input[type="text"]')))
+            print("Steam login page loaded.")
+        except TimeoutException:
+            print("Steam login page did not load as expected.")
+            raise TimeoutException("Steam login page did not load as expected.")
+
+        try:
+            print("Attempting to fill Steam credentials...")
+            username_input_steam = self.wait.until(
+                EC.presence_of_element_located((By.CSS_SELECTOR, "input._2GBWeup5cttgbTw8FM3tfx")))
+            username_input_steam.send_keys(self.steamdb_user)
+            print(f"Filled username: {self.steamdb_user}")
+
+            password_input_steam = self.driver.find_element(By.CSS_SELECTOR, 'input[type="password"]')
+            password_input_steam.send_keys(self.steamdb_pwd)
+            print("Filled password.")
+
+            login_button_steam = self.driver.find_element(By.CLASS_NAME, "DjSvCZoKKfoNSmarsEcTS")
+            login_button_steam.click()
+            print("Clicked Steam login button.")
+
+        except (NoSuchElementException, TimeoutException) as e:
+            print(f"Could not find username/password fields or login button on Steam page: {e}")
+            raise e
+
+    def handle_two_auth(self):
+        input("Realize a autenticação de dois fatores atrelada a sua conta e pressione enter")
+        try:
+            image_login_button = self.wait.until(EC.element_to_be_clickable((By.ID, "imageLogin")))
+            print("Botão 'imageLogin' apareceu. Clicando nele para finalizar o login no Steam...")
+            self.driver.execute_script("arguments[0].scrollIntoView({block: 'center', inline: 'nearest'});",
+                                       image_login_button)
+            time.sleep(0.3)
+            self.driver.execute_script("arguments[0].click();", image_login_button)
+
+            print("Aguardando redirecionamento para o SteamDB e pelo cookie de sessão...")
+            self.wait.until(
+                lambda d: d.get_cookie("__Host-steamdb") is not None and \
+                          "steamdb.info" in d.current_url and \
+                          "login" not in d.current_url.lower() and \
+                          "steampowered.com" not in d.current_url.lower()
+                # Garante que não estamos mais no domínio do Steam
+            )
+            print(
+                "Login bem-sucedido e redirecionado para o SteamDB após autenticação móvel e clique no 'imageLogin'.")
+
+        except TimeoutException:
+            # Isso significa que o 'imageLogin' não apareceu como esperado ou o redirecionamento final falhou
+            print(
+                "Botão 'imageLogin' não apareceu ou o redirecionamento para o SteamDB falhou após a etapa de autenticação móvel.")
+            # Verificar se, apesar disso, o login no SteamDB foi bem-sucedido (ex: redirecionamento automático do Steam)
+            if self.driver.get_cookie("__Host-steamdb") and \
+                    "steamdb.info" in self.driver.current_url and \
+                    "login" not in self.driver.current_url.lower():
+                print("No entanto, o login no SteamDB parece ter sido bem-sucedido (cookie encontrado).")
+            else:
+                print("O processo de login ficou parado ou falhou após a etapa de autenticação móvel.")
 
     def login(self):
         try:
-            print("Accessing steamdb.info...")
-            # It's generally better to try and load the page first to see if a CAPTCHA appears,
-            # then let the user solve it, then proceed with login logic.
-            self.driver.get("https://steamdb.info/")  # Go to main page first
-
-            input("Resolva o captch e pressione Enter para continuar...")
-
-            # Now navigate to the specific page or perform actions
-            self.driver.get("https://steamdb.info/watching/")  # Or your target page after CAPTCHA
-            print("Navigated to watching page (or your target page).")
-
-            # Check if already logged in by looking for the cookie
-            # This check should ideally happen after successfully handling any CAPTCHAs
-            # and navigating to a page where login status is clear.
-            if self.driver.get_cookie("__Host-steamdb"):
-                print("Você já está logado.")
-                # self.driver.quit() # Consider if you want to quit immediately or do other things
-                # sys.exit()
-                return  # Exit the login method if already logged in, but don't exit the whole program yet
-
-            else:
-                print("Not logged in. Attempting login...")
-                # Click on the login link
-                # Ensure the page context is correct after manual CAPTCHA solving
-                login_link = self.wait.until(EC.element_to_be_clickable((By.CLASS_NAME, "header-login")))
-                login_link.click()
-                print("Clicked header login link.")
-
-                try:
-                    sign_in_button = self.wait.until(EC.element_to_be_clickable((By.ID, "js-sign-in")))
-                    sign_in_button.click()
-                    print("Clicked 'Sign in via Steam' button (js-sign-in).")
-                except TimeoutException:
-                    print(
-                        "Could not find or click 'js-sign-in' button. Page structure might have changed or CAPTCHA interference.")
-                    # self.driver.quit() # Decide on error handling
-                    return
-
-                try:
-                    self.wait.until(EC.presence_of_element_located((By.CSS_SELECTOR, 'input[type="text"]')))
-                    print("Steam login page loaded.")
-                except TimeoutException:
-                    print("Steam login page did not load as expected.")
-                    try:
-                        direct_submit_button = self.driver.find_element(By.CSS_SELECTOR, 'button[type="submit"]')
-                        if direct_submit_button.is_displayed() and direct_submit_button.is_enabled():
-                            direct_submit_button.click()
-                            print("Você fez o login com sua conta Steam (direct submit).")
-                            self.wait.until(EC.url_contains("steamdb.info"))
-                            print("Login successful, redirected back to SteamDB.")
-                            # self.driver.quit()
-                            # sys.exit()
-                            return
-                    except NoSuchElementException:
-                        print("No direct submit button found initially on Steam page.")
-                    except TimeoutException:
-                        print("Timed out waiting for redirection after direct submit.")
-                        # self.driver.quit()
-                        return
-
-                try:
-                    print("Attempting to fill Steam credentials...")
-                    username_input_steam = self.wait.until(
-                        EC.presence_of_element_located((By.CSS_SELECTOR, "input._2GBWeup5cttgbTw8FM3tfx")))
-                    username_input_steam.send_keys(self.steamdb_user)
-                    print(f"Filled username: {self.steamdb_user}")
-
-                    password_input_steam = self.driver.find_element(By.CSS_SELECTOR, 'input[type="password"]')
-                    password_input_steam.send_keys(self.steamdb_pwd)
-                    print("Filled password.")
-
-                    login_button_steam = self.driver.find_element(By.CLASS_NAME, "DjSvCZoKKfoNSmarsEcTS")
-                    login_button_steam.click()
-                    print("Clicked Steam login button.")
-
-                except (NoSuchElementException, TimeoutException) as e:
-                    print(f"Could not find username/password fields or login button on Steam page: {e}")
-                    try:
-                        fallback_submit_button = self.wait.until(
-                            EC.element_to_be_clickable((By.CSS_SELECTOR, 'button[type="submit"]')))
-                        fallback_submit_button.click()
-                        print(
-                            "Você fez o login com sua conta Steam (fallback submit after attempting credential entry).")
-                        self.wait.until(EC.url_contains("steamdb.info"))
-                        print("Login successful, redirected back to SteamDB.")
-                        # self.driver.quit()
-                        # sys.exit()
-                        return
-                    except (NoSuchElementException, TimeoutException):
-                        print("No fallback submit button found either. Login process stuck.")
-                        # self.driver.quit()
-                        return
-
-                try:
-                    mobile_auth_text_xpath = "//*[contains(text(), 'Use o aplicativo móvel do Steam para confirmar o início de sessão') or contains(text(), 'Use the Steam Guard Mobile Authenticator to sign in')]"
-                    self.wait.until(EC.presence_of_element_located((By.XPATH, mobile_auth_text_xpath)))
-                    print("Steam Guard (mobile app confirmation) detected. Please authorize on your mobile device.")
-                    print("Waiting for mobile authorization...")
-
-                    # Improved wait after mobile auth: wait for a specific, reliable element on steamdb.info
-                    # or a significant URL change that confirms login.
-                    # Example: Wait for an element that only appears when logged in on steamdb.info/watching/
-                    # This is more robust than just url_contains("steamdb.info/")
-                    self.wait.until(lambda d: d.get_cookie(
-                        "__Host-steamdb") is not None and "steamdb.info/watching" in d.current_url)
-                    print("Successfully logged in and redirected to SteamDB after mobile auth.")
-
-                    # Attempting to click a final submit button on Steam's page after mobile auth is less common
-                    # if Steam automatically redirects. The wait above should handle the redirection.
-                    # If a final submit IS needed on Steam's side before redirecting:
-                    # try:
-                    #     final_submit_button_on_steam = self.wait.until(EC.element_to_be_clickable((By.CSS_SELECTOR, 'button[type="submit"], input[type="submit"]'))) # More generic
-                    #     print("Found a final submit/authorize button on Steam page after mobile auth.")
-                    #     final_submit_button_on_steam.click()
-                    #     print("Clicked final submit/authorize button.")
-                    #     self.wait.until(EC.url_contains("steamdb.info")) # Wait for redirection
-                    #     print("Successfully logged in and redirected to SteamDB after mobile auth and final submit.")
-                    # except TimeoutException:
-                    #     print("No final submit button found on Steam page after mobile auth, or already redirected.")
-                    #     if "__Host-steamdb" in (c['name'] for c in self.driver.get_cookies()) and "steamdb.info" in self.driver.current_url:
-                    #          print("Successfully logged in and redirected to SteamDB after mobile auth (checked cookie).")
-                    #     else:
-                    #         print("Stuck after mobile auth, did not redirect to SteamDB as expected.")
-
-
-                except TimeoutException:
-                    print(
-                        "Mobile authenticator prompt not detected, or timed out waiting for login after mobile auth. Checking for other outcomes or trying a generic submit.")
-                    try:
-                        general_submit_button = self.wait.until(EC.element_to_be_clickable(
-                            (By.CSS_SELECTOR, 'button[type="submit"], input[type="submit"]')))
-                        general_submit_button.click()
-                        print("Clicked a general submit button.")
-                        self.wait.until(EC.url_contains("steamdb.info"))
-                        # self.wait.until(EC.not_(EC.url_contains("login/"))) # This might be too restrictive if steamdb.info/login is a valid intermediate
-                        print("Você fez o login com sua conta Steam (after general submit).")
-
-                    except TimeoutException:
-                        print("No general submit button found, or login failed before Steam Guard step.")
-                        if self.driver.get_cookie("__Host-steamdb") and "steamdb.info" in self.driver.current_url:
-                            print("Login appears successful (cookie found on steamdb.info).")
-                        else:
-                            print("Login failed or process is stuck.")
+            if self.check_logged():
+                return
+            print("Not logged in. Attempting login...")
+            self.handle_header_login()
+            self.click_sign_in_via_steam()
+            self.fill_steam_credentials()
+            self.handle_two_auth()
 
         except TimeoutException as e:
             print(f"A timeout occurred: {e}")
@@ -182,16 +127,8 @@ class MonthlyPlayersSteamDBScraper:
             print(f"An element was not found: {e}")
         except Exception as e:
             print(f"An unexpected error occurred: {e}")
-        # finally: # Consider when to quit. If the script is meant to do more, don't quit here.
-        # if hasattr(self, 'driver'):
-        #     print("Process finished. To close browser, do it manually or add driver.quit() at the end of your main script flow.")
-        #     # self.driver.quit() # Uncomment if you want to close browser at the end of login() regardless
-        # sys.exit() # Avoid exiting mid-process if the class is to be used for more tasks
 
-    def search_game(self, game_name="fallout"): # Added game_name parameter
-        """
-        Searches for a game on SteamDB.
-        """
+    def search_game(self, game_name):
         try:
             # It's good practice to wait for the search input to be ready
             print(f"Attempting to find search input with itemprop='query-input'.")
@@ -202,19 +139,13 @@ class MonthlyPlayersSteamDBScraper:
             search_input.send_keys(game_name)
             print(f"Filled search input with '{game_name}'.")
 
-            # Find and click the search button
-            # The aria-label might be specific, ensure it's correct.
-            # Using CSS selector for aria-label.
             print(f"Attempting to find search button with aria-label='Perform search'.")
             search_button = self.wait.until(
                 EC.element_to_be_clickable((By.CSS_SELECTOR, 'button[aria-label="Perform search"]'))
             )
             search_button.click()
             print("Clicked search button.")
-            print(f"Search for '{game_name}' performed. Check the browser.")
-            # Add a small delay to see the search results page load if needed
-            # import time
-            # time.sleep(5)
+            print(f"Search for '{game_name}' performed.")
 
         except TimeoutException:
             print(f"Error: Could not find search elements or timed out waiting for them.")
@@ -225,21 +156,10 @@ class MonthlyPlayersSteamDBScraper:
 
     def enter_franchise(self):
         """
-        Encontra um elemento <i> com texto "Franchise", clica no <a> anterior,
-        e então itera pelas seções subinfo para clicar em links, ir para gráficos e voltar.
+        Encontra um elemento <i> com texto "Franchise", clica no <a> anterior.
         """
         try:
             print("Tentando encontrar o gatilho da franquia (<i>Franchise</i>)...")
-            # Assumindo que estamos em uma página onde tal gatilho pode existir (ex: página de um jogo)
-            # Se não, navegue para uma página relevante primeiro:
-            # self.driver.get("URL_DE_UMA_PAGINA_DE_JOGO_COM_GATILHO_DE_FRANQUIA")
-            # time.sleep(2) # Permite que a página carregue
-
-            # Encontra todos os elementos <i> com classe 'subinfo' e texto 'Franchise'
-            # Usar XPath para encontrar o <i> e depois seu irmão <a> anterior
-            # //i[@class='subinfo' and normalize-space(text())='Franchise']/preceding-sibling::a[1]
-            # O [1] garante que pegamos o irmão <a> mais próximo antes do <i>
-            franchise_trigger_link = None
             try:
                 # Tentativa de encontrar o link <a> diretamente com XPath
                 franchise_trigger_link = self.wait.until(
@@ -252,12 +172,9 @@ class MonthlyPlayersSteamDBScraper:
 
             franchise_link_href = franchise_trigger_link.get_attribute('href')
             print(f"Encontrado link da franquia através do gatilho <i>: {franchise_link_href}. Clicando nele...")
-            # Scroll para o elemento pode ser útil se ele não estiver visível
-            # self.driver.execute_script("arguments[0].scrollIntoView(true);", franchise_trigger_link)
-            # time.sleep(0.5)
             franchise_trigger_link.click()
 
-            self.wait.until(EC.url_contains("/franchise/"))  # Espera que a URL mude para a página da franquia
+            self.wait.until(EC.url_contains("/franchise/"))
             print("Navegado para a página da franquia.")
             time.sleep(1)
 
@@ -270,7 +187,7 @@ class MonthlyPlayersSteamDBScraper:
 
     def proccess_franchise(self):
         """
-        Na página da franquia (que contém a tabela de vendas), itera pelas linhas da tabela.
+        Na página da franquia (que contém a tabela de jogos), itera pelas linhas da tabela.
         Para cada linha com um <div class="subinfo"> vazio, clica no link <a> correspondente.
         """
         print("\nIniciando processamento da tabela de vendas na página de franquia...")
@@ -280,14 +197,14 @@ class MonthlyPlayersSteamDBScraper:
                 print(f"URL Atual: {self.driver.current_url}")
                 return
 
-            table_id = "DataTables_Table_0"  # ID da tabela de vendas
+            table_id = "DataTables_Table_0"  # ID da tabela de jogos
             try:
                 table_sales = self.wait.until(
                     EC.presence_of_element_located((By.ID, table_id))
                 )
-                print("Tabela de vendas encontrada.")
+                print("Tabela de jogos encontrada.")
             except TimeoutException:
-                print(f"Tabela de vendas (ID: {table_id}) não encontrada na página. Abortando.")
+                print(f"Tabela de jogos (ID: {table_id}) não encontrada na página. Abortando.")
                 return
 
             franchise_page_url = self.driver.current_url
@@ -310,9 +227,6 @@ class MonthlyPlayersSteamDBScraper:
                                 {"original_index": index, "href": link_href, "app_name": link_to_click_in_row.text})
                             print(
                                 f"Linha {index}: div.subinfo está vazio. Link para clicar: {link_href} ({link_to_click_in_row.text})")
-                    # else:
-                    # content_debug = self.driver.execute_script("return arguments[0].innerHTML;", subinfo_div).strip()
-                    # print(f"Linha {index}: div.subinfo NÃO está vazio. Conteúdo: '{content_debug[:50]}...'")
                 except NoSuchElementException:
                     print(f"Linha {index} não tem a estrutura esperada (td a.b ou div.subinfo). Ignorando.")
                     pass
@@ -359,11 +273,7 @@ class MonthlyPlayersSteamDBScraper:
                                                link_element_to_click_recheck)
                     time.sleep(0.5)
                     self.driver.execute_script("arguments[0].click();", link_element_to_click_recheck)
-
-                    # ----- PONTO DA MODIFICAÇÃO PRINCIPAL -----
-                    # Substituir EC.not_(EC.url_to_be(franchise_page_url))
                     self.wait.until(lambda driver: driver.current_url != franchise_page_url)
-                    # -------------------------------------------
                     print(f"Navegado para: {self.driver.current_url}")
                     time.sleep(1)
 
@@ -401,10 +311,9 @@ class MonthlyPlayersSteamDBScraper:
         try:
             # Extrair nome do jogo do H1 (prioritário)
             h1_element = self.wait.until(EC.presence_of_element_located((By.CSS_SELECTOR, "h1[itemprop='name']")))
-            # h1_element = self.driver.find_element(By.CSS_SELECTOR, "div.pagehead-title h1[itemprop='name']") # Mais específico
             game_name_for_file = h1_element.text.strip()
             if not game_name_for_file:
-                raise ValueError("H1 estava vazio.")  # Usar ValueError para ser pego pelo except abaixo
+                raise ValueError("H1 estava vazio.")
             print(f"Nome do jogo extraído do H1: '{game_name_for_file}'")
         except (NoSuchElementException, TimeoutException, ValueError) as e_h1:
             print(f"Não foi possível extrair o nome do jogo do H1 ({e_h1}), tentando pelo título da página...")
@@ -435,7 +344,7 @@ class MonthlyPlayersSteamDBScraper:
             charts_tab_button = self.wait.until(EC.element_to_be_clickable((By.ID, "tab-charts")))
             self.driver.execute_script("arguments[0].scrollIntoView({block: 'center', inline: 'nearest'});",
                                        charts_tab_button)
-            time.sleep(0.3)  # Pausa após scroll
+            time.sleep(0.3)
             self.driver.execute_script("arguments[0].click();", charts_tab_button)
             print("Aba 'Charts' clicada.")
 
@@ -453,7 +362,7 @@ class MonthlyPlayersSteamDBScraper:
             # Esperar o div de loading desaparecer (se tornar hidden) E a tabela estar visível
             print(f"Esperando pelo div de loading '{loading_div_id}' ficar oculto...")
             self.wait.until(EC.invisibility_of_element_located(
-                (By.ID, loading_div_id)))  # Espera até que o loader não seja mais visível
+                (By.ID, loading_div_id)))
 
             print(f"Esperando pela tabela de dados mensais (id='{table_id}') ficar visível...")
             data_table = self.wait.until(EC.visibility_of_element_located((By.ID, table_id)))
@@ -501,20 +410,7 @@ class MonthlyPlayersSteamDBScraper:
                 return  # Não criar CSV se não houver dados.
 
             print(f"Extraídas {len(all_rows_data)} linhas de dados.")
-
-            # 6. Escrever dados no arquivo CSV
-            # Certificar-se de que o diretório 'csv_data' existe
-            output_dir = "csv_data"
-            os.makedirs(output_dir, exist_ok=True)
-            full_csv_path = os.path.join(output_dir, csv_filename)
-
-            with open(full_csv_path, 'w', newline='', encoding='utf-8') as csvfile:
-                writer = csv.writer(csvfile)
-                if headers:
-                    writer.writerow(headers)
-                writer.writerows(all_rows_data)
-
-            print(f"Dados da tabela '{table_id}' salvos em '{full_csv_path}'")
+            self.csv_writer(headers, all_rows_data, table_id, csv_filename)
 
         except TimeoutException:
             print(
@@ -526,6 +422,19 @@ class MonthlyPlayersSteamDBScraper:
         finally:
             print(f"Processamento da página do jogo {current_game_page_url} concluído.")
             # A navegação de volta é responsabilidade da função chamadora (proccess_franchise)
+
+    def csv_writer(self, headers, rows_data, table_id, csv_filename):
+        output_dir = "csv_data"
+        os.makedirs(output_dir, exist_ok=True)
+        full_csv_path = os.path.join(output_dir, csv_filename)
+
+        with open(full_csv_path, 'w', newline='', encoding='utf-8') as csvfile:
+            writer = csv.writer(csvfile)
+            if headers:
+                writer.writerow(headers)
+            writer.writerows(rows_data)
+
+        print(f"Dados da tabela '{table_id}' salvos em '{full_csv_path}'")
 
     def close_browser(self):
         if hasattr(self, 'driver'):
@@ -541,9 +450,6 @@ if __name__ == '__main__':
         steam_db_instance = None  # Initialize to ensure it's defined for finally block
         try:
             steam_db_instance = MonthlyPlayersSteamDBScraper()
-            # The login logic is called in __init__
-            # If login is successful and you want to do more, add code here.
-            # For example, after login:
             if steam_db_instance.driver.get_cookie("__Host-steamdb"):
                 print("Login successful. Browser will remain open.")
                 print("You can add more automation steps here.")
