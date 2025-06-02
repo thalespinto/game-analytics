@@ -1,11 +1,10 @@
 import time
 
-from games_to_scraper.games import games
-from games_to_scraper.games import franchises
+from scraper.games_to_scraper.games import games, franchises
 from scraper.steamdb_scraper import MonthlyPlayersSteamDBScraper
 
 
-def main():
+def execute_scraper():
     steamdb_scraper = MonthlyPlayersSteamDBScraper()
     steamdb_scraper.access_steamdb()
     steamdb_scraper.login()
@@ -22,7 +21,3 @@ def main():
         steamdb_scraper.proccess_franchise(csv_dir=franchise)
         print("O programa irá esperar por 10 segundso para evitar captcha.")
         time.sleep(10)
-
-
-if __name__ == '__main__':
-    main()

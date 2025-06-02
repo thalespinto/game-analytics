@@ -17,10 +17,6 @@ class MortalKombatAnalyzer(MortalKombat):
         self.analyzer.analyze_media()
 
 
-def main():
+def analyze_mortal_kombat():
     fallout_analyzer = MortalKombatAnalyzer()
     fallout_analyzer.analyze()
-
-
-if __name__ == "__main__":
-    main()

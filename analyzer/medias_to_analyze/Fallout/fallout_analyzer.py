@@ -16,10 +16,6 @@ class FalloutAnalyzer(Fallout):
         self.analyzer.analyze_media()
 
 
-def main():
+def analyze_fallout():
     fallout_analyzer = FalloutAnalyzer()
     fallout_analyzer.analyze()
-
-
-if __name__ == "__main__":
-    main()

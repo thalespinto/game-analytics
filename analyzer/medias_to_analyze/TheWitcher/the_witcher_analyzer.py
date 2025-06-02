@@ -17,10 +17,6 @@ class TheWitcherAnalyzer(TheWitcher):
         self.analyzer.analyze_media()
 
 
-def main():
+def analyze_the_witcher():
     fallout_analyzer = TheWitcherAnalyzer()
     fallout_analyzer.analyze()
-
-
-if __name__ == "__main__":
-    main()
