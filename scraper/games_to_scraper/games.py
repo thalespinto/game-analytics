@@ -5,7 +5,7 @@ franchises = [
     "Tomb Raider",
     "The Witcher",
     "Fallout",
-    "Mortal Kombat",
+    "MortalKombat",
     "Five Nights at Freddy's",
 ]
 

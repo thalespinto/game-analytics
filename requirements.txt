@@ -1,3 +1,5 @@
 selenium
 python-dotenv
 undetected-chromedriver
+pandas
+matplotlib
