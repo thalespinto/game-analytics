@@ -154,6 +154,55 @@ class MonthlyPlayersSteamDBScraper:
         except Exception as e:
             print(f"An unexpected error occurred during game search: {e}")
 
+    def enter_game(self, game_name):
+        """
+        Na página de resultados da pesquisa, encontra e clica em um link de jogo
+        dentro da tabela de resultados (ID "table-sortable") que corresponda exatamente a game_name.
+        """
+        print(f"Tentando encontrar e clicar no jogo: '{game_name}' nos resultados da pesquisa.")
+
+        try:
+            # Esperar que a tabela esteja presente
+            self.wait.until(
+                EC.presence_of_element_located((By.ID, "table-sortable"))
+            )  #
+            print("Tabela de resultados da pesquisa encontrada.")
+
+            # Obter todos os links de nome de jogo da terceira coluna de cada linha relevante no corpo da tabela
+            potential_links = self.driver.find_elements(By.XPATH, "//table[@id='table-sortable']/tbody/tr/td[3]/a")  #
+
+            target_link = None
+            for link_candidate in potential_links:
+                # Usar JavaScript para obter textContent pode ser mais confiável do que .text para correspondências exatas
+                link_text = self.driver.execute_script("return arguments[0].textContent;", link_candidate)  #
+                if link_text and link_text.strip() == game_name:  #
+                    target_link = link_candidate
+                    break
+
+            print(f"Link do jogo encontrado para '{game_name}'.")
+
+            # Rolar até o elemento e clicar
+            self.driver.execute_script("arguments[0].scrollIntoView({block: 'center', inline: 'nearest'});",
+                                       target_link)  #
+            time.sleep(0.5)  # Breve pausa após rolar antes de clicar
+            self.driver.execute_script("arguments[0].click();",
+                                       target_link)  # Clique com JavaScript pode ser mais robusto #
+            print(f"Link do jogo clicado para '{game_name}'.")
+
+            print(f"Navegado para fora dos resultados da pesquisa. URL atual: {self.driver.current_url}")
+            time.sleep(1)  # Permitir um segundo para a nova página começar a renderizar
+
+        except TimeoutException:
+            print(
+                f"Erro: Timeout ao tentar encontrar ou clicar no jogo '{game_name}'. Ele pode não estar nos resultados ou a estrutura da página mudou.")
+            # raise # Re-levante se o chamador precisar lidar com isso, ou lide aqui
+        except NoSuchElementException as e:
+            print(f"Erro: Link do jogo para '{game_name}' não encontrado. {e}")
+            # raise
+        except Exception as e:
+            print(f"Um erro inesperado ocorreu em enter_game para '{game_name}': {e}")
+            # raise
+
     def enter_franchise(self):
         """
         Encontra um elemento <i> com texto "Franchise", clica no <a> anterior.
