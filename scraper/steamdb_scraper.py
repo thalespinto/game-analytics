@@ -21,27 +21,27 @@ class MonthlyPlayersSteamDBScraper:
         self.driver = uc.Chrome(options=options)
         self.wait = WebDriverWait(self.driver, 20)
 
-    def access_steamdb(self):
+    def _access_steamdb(self):
         print("Accessing steamdb.info...")
         self.driver.get("https://steamdb.info/")
 
         input("Resolva o captch e pressione Enter para continuar...")
         return
 
-    def check_logged(self):
+    def _check_logged(self):
         # Check if already logged in by looking for the cookie
         if self.driver.get_cookie("__Host-steamdb"):
             print("Você já está logado.")
             return True
         return False
 
-    def handle_header_login(self):
+    def _handle_header_login(self):
         # Click on the login link
         login_link = self.wait.until(EC.element_to_be_clickable((By.CLASS_NAME, "header-login")))
         login_link.click()
         print("Clicked header login link.")
 
-    def click_sign_in_via_steam(self):
+    def _click_sign_in_via_steam(self):
         try:
             sign_in_button = self.wait.until(EC.element_to_be_clickable((By.ID, "js-sign-in")))
             sign_in_button.click()
@@ -51,7 +51,7 @@ class MonthlyPlayersSteamDBScraper:
                 "Could not find or click 'js-sign-in' button. Page structure might have changed or CAPTCHA interference.")
             raise TimeoutException("Could not find or click 'js")
 
-    def fill_steam_credentials(self):
+    def _fill_steam_credentials(self):
         try:
             self.wait.until(EC.presence_of_element_located((By.CSS_SELECTOR, 'input[type="text"]')))
             print("Steam login page loaded.")
@@ -78,7 +78,7 @@ class MonthlyPlayersSteamDBScraper:
             print(f"Could not find username/password fields or login button on Steam page: {e}")
             raise e
 
-    def handle_two_auth(self):
+    def _handle_two_auth(self):
         input("Realize a autenticação de dois fatores atrelada a sua conta e pressione enter")
         try:
             image_login_button = self.wait.until(EC.element_to_be_clickable((By.ID, "imageLogin")))
@@ -113,13 +113,13 @@ class MonthlyPlayersSteamDBScraper:
 
     def login(self):
         try:
-            if self.check_logged():
+            if self._check_logged():
                 return
             print("Not logged in. Attempting login...")
-            self.handle_header_login()
-            self.click_sign_in_via_steam()
-            self.fill_steam_credentials()
-            self.handle_two_auth()
+            self._handle_header_login()
+            self._click_sign_in_via_steam()
+            self._fill_steam_credentials()
+            self._handle_two_auth()
 
         except TimeoutException as e:
             print(f"A timeout occurred: {e}")
@@ -490,25 +490,3 @@ class MonthlyPlayersSteamDBScraper:
             print("Fechando navegador.")
             self.driver.quit()
 
-
-if __name__ == '__main__':
-    if not os.getenv('STEAMDB_USER') or not os.getenv('STEAMDB_PWD'):
-        print("Please set STEAMDB_USER and STEAMDB_PWD environment variables in your .env file.")
-    else:
-        print("Attempting to log in to SteamDB using undetected_chromedriver...")
-        steam_db_instance = None  # Initialize to ensure it's defined for finally block
-        try:
-            steam_db_instance = MonthlyPlayersSteamDBScraper()
-            if steam_db_instance.driver.get_cookie("__Host-steamdb"):
-                print("Login successful. Browser will remain open.")
-                print("You can add more automation steps here.")
-                input("Press Enter to close the browser and exit...")  # Keep browser open until user interaction
-            else:
-                print("Login was not successful. Please check the console output.")
-
-        except Exception as e:
-            print(f"An error occurred during the process: {e}")
-        finally:
-            if steam_db_instance:
-                steam_db_instance.close_browser()  # Ensure browser is closed
-            print("Program finished.")
