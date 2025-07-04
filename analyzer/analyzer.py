@@ -1,7 +1,7 @@
 import matplotlib.pyplot as plt
 import os
 import pandas as pd
-from scipy.stats import ttest_ind  # Importa a função do Teste t
+from scipy.stats import ttest_ind, shapiro, mannwhitneyu
 
 class Analyzer(object):
     def __init__(self, media_name, game_franchise_name, media_type, release_dates, combine=False, metric="Average"):
@@ -187,10 +187,11 @@ class Analyzer(object):
         elif self.combine and not all_dfs_for_combine: # Caso self.combine seja True mas nenhum dado foi coletado
              print("Modo de combinação ativado, mas nenhum dado foi coletado dos arquivos CSV.")
 
+
 def analisar_impacto_lancamento(caminho_csv, mes_lancamento, nome_audiovisual):
     """
-    Analisa o impacto de um lançamento audiovisual no pico de jogadores de um jogo,
-    incluindo um teste de significância estatística (Teste t).
+    Analisa o impacto de um lançamento, diagnosticando os dados para escolher
+    automaticamente o teste estatístico mais apropriado (Teste t ou Mann-Whitney U).
 
     Args:
         caminho_csv (str): O caminho para o arquivo CSV com os dados de jogadores.
@@ -199,6 +200,7 @@ def analisar_impacto_lancamento(caminho_csv, mes_lancamento, nome_audiovisual):
     """
     print(f"--- Análise de Impacto: {nome_audiovisual} ---")
 
+    # ... (O código de carregamento e limpeza dos dados permanece o mesmo)
     try:
         df = pd.read_csv(caminho_csv)
         df['Peak'] = df['Peak'].str.replace(',', '', regex=False)
@@ -207,19 +209,16 @@ def analisar_impacto_lancamento(caminho_csv, mes_lancamento, nome_audiovisual):
         df = df.dropna(subset=['Month', 'Peak'])
         df['Month'] = df['Month'].dt.to_period('M')
         df = df.set_index('Month')
-    except FileNotFoundError:
-        print(f"Erro: Arquivo '{caminho_csv}' não encontrado.")
-        return
-    except KeyError:
-        print("Erro: O CSV deve conter as colunas 'month' e 'peak_players'.")
+    except (FileNotFoundError, KeyError) as e:
+        print(f"Erro ao carregar ou processar o CSV: {e}")
         return
 
     data_lancamento = pd.Period(mes_lancamento, 'M')
-
     if data_lancamento not in df.index:
         print(f"Erro: A data de lançamento '{mes_lancamento}' não foi encontrada nos dados.")
         return
 
+    # ... (Análise de Impacto Imediato permanece a mesma)
     print("\n[ Análise de Impacto Imediato ]")
     mes_anterior = data_lancamento - 1
     if mes_anterior in df.index:
@@ -233,42 +232,55 @@ def analisar_impacto_lancamento(caminho_csv, mes_lancamento, nome_audiovisual):
         print(f"Não foi possível calcular o impacto imediato: mês anterior ('{mes_anterior}') não encontrado.")
 
     print("\n[ Análise de Impacto a Longo Prazo (6 meses) ]")
-    periodo_antes = df.loc[data_lancamento - 6: data_lancamento - 1]
-    periodo_depois = df.loc[data_lancamento + 1: data_lancamento + 6]
+    print(f"{data_lancamento - 6}:{data_lancamento - 1}")
+    print(f"{data_lancamento + 1}:{data_lancamento + 6}")
+    periodo_antes = df.loc[data_lancamento - 1:data_lancamento - 6]
+    periodo_depois = df.loc[data_lancamento + 6:data_lancamento + 1]
 
     if len(periodo_antes) == 6 and len(periodo_depois) == 6:
         media_antes = periodo_antes['Peak'].mean()
         media_depois = periodo_depois['Peak'].mean()
-        variacao_longo_prazo = ((media_depois - media_antes) / media_antes) * 100
         print(f"Média do pico de jogadores nos 6 meses ANTES: {media_antes:,.2f}")
         print(f"Média do pico de jogadores nos 6 meses DEPOIS: {media_depois:,.2f}")
-        print(f"Variação na média a longo prazo: {variacao_longo_prazo:+.2f}%")
 
+        # --- NOVA SEÇÃO: DIAGNÓSTICO E ESCOLHA DO TESTE ---
+        print("\n[ Validação Estatística ]")
 
-        print("\n[ Validação Estatística (Teste t) ]")
+        # 1. Teste de Normalidade (Shapiro-Wilk)
+        # Hipótese Nula (H0): Os dados SÃO normalmente distribuídos.
+        shapiro_antes_stat, shapiro_antes_p = shapiro(periodo_antes['Peak'])
+        shapiro_depois_stat, shapiro_depois_p = shapiro(periodo_depois['Peak'])
 
-        # Realiza o Teste t de amostras independentes
-        # 'alternative='greater'' testa a hipótese de que a média do 'periodo_depois' é MAIOR que a do 'periodo_antes'
-        stat, p_value = ttest_ind(periodo_depois['Peak'], periodo_antes['Peak'],
-                                  alternative='greater')
+        alpha = 0.05
+        # Se o p-valor for > 0.05, não rejeitamos a H0 (assumimos que é normal).
+        is_normal_antes = shapiro_antes_p > alpha
+        is_normal_depois = shapiro_depois_p > alpha
+
+        print(f"Diagnóstico de Normalidade (Teste Shapiro-Wilk):")
+        print(f"  - Período ANTES: p-valor={shapiro_antes_p:.4f}. Normal? {'Sim' if is_normal_antes else 'Não'}")
+        print(f"  - Período DEPOIS: p-valor={shapiro_depois_p:.4f}. Normal? {'Sim' if is_normal_depois else 'Não'}")
+
+        # 2. Escolha e Execução do Teste Apropriado
+        if is_normal_antes and is_normal_depois:
+            print("\n-> Ambos os grupos parecem normais. Usando Teste t.")
+            stat, p_value = ttest_ind(periodo_depois['Peak'], periodo_antes['Peak'], alternative='greater')
+        else:
+            print("\n-> Pelo menos um grupo não parece normal. Usando Teste Mann-Whitney U (não paramétrico).")
+            # Este teste é mais seguro para dados não normais ou amostras pequenas.
+            stat, p_value = mannwhitneyu(periodo_depois['Peak'], periodo_antes['Peak'], alternative='greater')
 
         print(f"p-valor do teste: {p_value:.4f}")
-
-        # Interpreta o resultado
-        alpha = 0.05  # Nível de significância padrão
         if p_value < alpha:
-            print(f"Conclusão: Como o p-valor ({p_value:.4f}) é menor que {alpha}, rejeitamos a hipótese nula.")
-            print("O aumento no pico médio de jogadores é ESTATISTICAMENTE SIGNIFICATIVO.")
+            print(
+                f"Conclusão: Como o p-valor ({p_value:.4f}) é menor que {alpha}, o resultado é ESTATISTICAMENTE SIGNIFICATIVO.")
         else:
             print(
-                f"Conclusão: Como o p-valor ({p_value:.4f}) é maior que {alpha}, não podemos rejeitar a hipótese nula.")
-            print("Não há evidência estatística suficiente para afirmar que o aumento foi significativo.")
+                f"Conclusão: Como o p-valor ({p_value:.4f}) é maior que {alpha}, não há evidência estatística de um aumento significativo.")
 
     else:
-        print(
-            "Não foi possível realizar a análise de longo prazo: dados insuficientes para os períodos de 6 meses.")
+        print("Não foi possível realizar a análise de longo prazo: dados insuficientes para os períodos de 6 meses.")
 
-    print("-" * 40)
+    print("-" * 50)
 
 
 def main():
