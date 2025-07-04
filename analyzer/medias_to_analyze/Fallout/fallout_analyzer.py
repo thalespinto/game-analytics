@@ -10,6 +10,7 @@ class FalloutAnalyzer(Fallout):
             game_franchise_name=self.game_franchise_name,
             media_type=self.media_type,
             release_dates=self.release_dates,
+            combine=True
         )
 
     def analyze(self):

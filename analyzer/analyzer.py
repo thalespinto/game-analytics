@@ -1,74 +1,87 @@
-import pandas as pd
 import matplotlib.pyplot as plt
 import os
-
+import pandas as pd
+from scipy.stats import ttest_ind  # Importa a função do Teste t
 
 class Analyzer(object):
-    def __init__(self, media_name, game_franchise_name, media_type, release_dates, metric="Average"):
+    def __init__(self, media_name, game_franchise_name, media_type, release_dates, combine=False, metric="Average"):
         self.media_name = media_name
         self.game_franchise_name = game_franchise_name
         self.media_type = media_type
         self.release_dates = release_dates
-        self.metric = metric  # Corrigido: Atribuir o parâmetro metric a self.metric
+        self.combine = combine
+        self.metric = metric
 
-    def create_graph(self, df, output_graph_dir, csv_filename):
-        plt.figure(figsize=(12, 6))
-        # Plot only non-NaN values for the metric
-        plt.plot(df["Month"], df[f"{self.metric}"], label=f"{self.metric}", marker='o', linestyle='-')
+    def create_graph(self, df, output_graph_dir, csv_filename, combined_plot_title=None):
+        """
+        Cria e salva um gráfico.
+        Se combined_plot_title for fornecido e 'Source' estiver nas colunas do df,
+        trata como um gráfico combinado com múltiplas fontes.
+        """
+        plt.figure(figsize=(15, 7)) # Aumentado um pouco para melhor visualização de múltiplos plots
+        title_metric_name = 'Média' if self.metric == "Average" else self.metric
 
-        # Adicionar linha vertical para S1 (ou outras datas de lançamento)
-        # Assegurar que release_dates seja um dicionário, mesmo para tipos de mídia não-Series
-        # Para simplificar, vamos assumir que se media_type não for "Series", release_dates é uma string de data única
-        # e a transformamos em um dicionário com uma chave genérica como "Release"
+        if 'Source' in df.columns and combined_plot_title:  # Gráfico combinado
+            # Agrupa por 'Source' e plota cada um
+            for source_name, group in df.groupby('Source'):
+                # Ordena cada grupo por data para garantir que as linhas sejam desenhadas corretamente
+                group_sorted = group.sort_values("Month")
+                plt.plot(group_sorted["Month"], group_sorted[self.metric], label=f"{source_name} - {self.metric}", marker='o', linestyle='-')
+            plt.title(combined_plot_title)
+            # Nome do arquivo para o gráfico combinado
+            graph_filename_base = f"combined_{self.game_franchise_name}_{self.metric.replace(' ', '_').lower()}"
+        else:  # Gráfico individual
+            plt.plot(df["Month"], df[self.metric], label=f"{self.metric}", marker='o', linestyle='-')
+            plt.title(f"{title_metric_name} de Jogadores Mensais: {os.path.splitext(csv_filename)[0]}")
+            graph_filename_base = os.path.splitext(csv_filename)[0]
 
+        # Lógica para desenhar linhas verticais de datas de lançamento
         current_release_dates = {}
         if isinstance(self.release_dates, dict):
             current_release_dates = self.release_dates
         elif isinstance(self.release_dates, str):
-            # Se for uma string de data única (para filmes, etc.), crie um dicionário
             current_release_dates = {"Release": self.release_dates}
-        else:
-            print(f"Formato de release_dates ('{self.release_dates}') não suportado para plotagem de linhas verticais.")
-            # Prosseguir sem linhas verticais se o formato for inesperado
+        # Não mostrar print se não houver datas, especialmente no modo combinado
 
-        for season_or_event, date_str in current_release_dates.items():
-            release_date = pd.to_datetime(date_str, errors='coerce')
-            if pd.isna(release_date):
-                print(f"Data de lançamento {season_or_event} ('{date_str}') é inválida.")
-                # Não retorna, apenas pula esta linha vertical
-            else:
+        for event_name, date_str in current_release_dates.items():
+            try:
+                release_date = pd.to_datetime(date_str, errors='raise') # 'raise' para capturar datas inválidas
                 plt.axvline(x=release_date, color='r', linestyle='--',
-                            label=f'{season_or_event} Release ({release_date.strftime("%Y-%m-%d")})')
+                            label=f'{event_name} Release ({release_date.strftime("%Y-%m-%d")})')
+            except ValueError:
+                print(f"Data de lançamento '{event_name}' ('{date_str}') é inválida e não será plotada.")
+            except Exception as e:
+                print(f"Erro ao processar data de lançamento '{event_name}' ('{date_str}'): {e}")
 
-        title_metric_name = 'Média' if self.metric == "Average" else self.metric  # Usar o nome da métrica diretamente se não for "Average"
-        plt.title(
-            f"{title_metric_name} de Jogadores Mensais: {os.path.splitext(csv_filename)[0]}")
+
         plt.xlabel("Mês")
         plt.ylabel(f"{title_metric_name} de Jogadores")
-        plt.legend()
+        plt.legend(loc='upper left', bbox_to_anchor=(1,1)) # Ajusta a posição da legenda
         plt.grid(True)
         plt.xticks(rotation=45)
-        plt.tight_layout()
+        plt.tight_layout(rect=[0, 0, 0.85, 1]) # Ajusta o layout para caber a legenda fora
 
-        graph_filename = f"{os.path.splitext(csv_filename)[0]}_{self.metric.replace(' ', '_').lower()}_analysis.png"  # Incluir métrica no nome do arquivo
+        graph_filename = f"{graph_filename_base}_{self.metric.replace(' ', '_').lower()}_analysis.png"
         graph_filepath = os.path.join(output_graph_dir, graph_filename)
         plt.savefig(graph_filepath)
         plt.close()
         print(f"Gráfico salvo em: {graph_filepath}")
 
     def analyze_media(self):
-        if not self.game_franchise_name or not self.release_dates:
-            print("Nome da franquia ou data de lançamento não definidos. Abortando analyze_media.")
+        if not self.game_franchise_name:
+            print("Nome da franquia não definido. Abortando analyze_media.")
             return
 
-        csv_dir_path = os.path.join("C:/Users/thales/Documents/UFF/game-analytics/csv_data",
-                                    self.game_franchise_name)  # Mantenha seu caminho ou parametrize
+        # Caminho para os arquivos CSV (ajuste conforme necessário)
+        csv_dir_path = os.path.join("C:/Users/thales/Documents/UFF/game-analytics/csv_data", self.game_franchise_name)
         if not os.path.isdir(csv_dir_path):
             print(f"Diretório CSV não encontrado: {csv_dir_path}")
             return
 
         output_graph_dir = os.path.join("graphs")
         os.makedirs(output_graph_dir, exist_ok=True)
+
+        all_dfs_for_combine = [] # Lista para armazenar DataFrames se self.combine for True
 
         for csv_filename in os.listdir(csv_dir_path):
             if csv_filename.endswith(".csv"):
@@ -77,94 +90,197 @@ class Analyzer(object):
                 try:
                     df = pd.read_csv(csv_filepath)
 
-                    # Verificar se as colunas necessárias existem
                     if "Month" not in df.columns:
                         print(f"Coluna 'Month' não encontrada em {csv_filename}. Pulando.")
                         continue
-
-                    if f"{self.metric}" not in df.columns:
+                    if self.metric not in df.columns: # Corrigido para usar self.metric diretamente
                         print(f"Coluna da métrica '{self.metric}' não encontrada em {csv_filename}. Pulando.")
                         continue
 
-                    # Limpar e converter a coluna 'Month' para datetime
+                    # Limpeza e conversão da coluna 'Month'
                     df["Month"] = df["Month"].astype(str)
                     df = df[~df["Month"].str.contains("Last 30 Days", na=False, case=False)]
-
                     df["Month"] = pd.to_datetime(df["Month"].apply(lambda x: x + " 1" if isinstance(x, str) else x),
-                                                 format='%B %Y %d',
-                                                 errors='coerce')
+                                                 format='%B %Y %d', errors='coerce')
                     df.dropna(subset=["Month"], inplace=True)
 
                     if df.empty:
                         print(f"Nenhum dado de data válido encontrado em {csv_filename} após a conversão. Pulando.")
                         continue
 
-                    # Converter a coluna da métrica para numérico.
-                    # Valores como "1,234" tornam-se 1234.0.
-                    # Valores como "-" ou outras strings não numéricas tornam-se NaN.
-                    df[f"{self.metric}"] = pd.to_numeric(
-                        df[f"{self.metric}"].astype(str).str.replace(",", "", regex=False),
+                    # Limpeza e conversão da coluna da métrica
+                    df[self.metric] = pd.to_numeric(
+                        df[self.metric].astype(str).str.replace(",", "", regex=False),
                         errors='coerce'
                     )
+                    # Remove linhas onde a métrica é NaN APÓS a conversão.
+                    # Isso é importante para não tentar plotar NaNs ou ter problemas na combinação.
+                    df.dropna(subset=[self.metric], inplace=True)
 
-                    # Se a métrica for "Average", remover linhas onde a conversão para numérico falhou (ou seja, tornou-se NaN).
-                    # É aqui que as linhas com "-" na coluna "Average" seriam descartadas.
-                    if self.metric == "Average":
-                        df.dropna(subset=[f"{self.metric}"], inplace=True)
-                    # Se a métrica não for "Average", as linhas com NaN (por exemplo, de "-") na coluna da métrica são mantidas.
-                    # Isso resultará em lacunas no gráfico.
 
-                    # Verificar se o DataFrame está vazio após o processamento.
-                    if df.empty:
-                        print(
-                            f"DataFrame ficou vazio após processamento inicial ou da métrica para {csv_filename}. Pulando.")
-                        continue
-
-                    # Verificar adicionalmente: se a coluna da métrica agora é toda NaN, não há nada para plotar.
-                    if df[f"{self.metric}"].isnull().all():
-                        print(
-                            f"Coluna '{self.metric}' em {csv_filename} contém apenas valores inválidos (NaN) após conversão. Nada para plotar. Pulando.")
+                    if df.empty or df[self.metric].isnull().all():
+                        print(f"DataFrame vazio ou sem dados válidos para a métrica '{self.metric}' em {csv_filename} após limpeza. Pulando.")
                         continue
 
                     df.sort_values("Month", inplace=True)
 
-                    # Lógica para decidir se o gráfico deve ser gerado com base nas datas
-                    # (mantida a lógica original, adaptada para release_dates como dicionário ou string)
-                    oldest_date_in_csv = df["Month"].min()
-                    if pd.isna(oldest_date_in_csv):
-                        print(f"Não foi possível determinar a data mais antiga em {csv_filename}. Pulando.")
-                        continue
-
-                    # Determinar a data de lançamento principal para comparação
-                    main_release_date_str = None
-                    if self.media_type == "Series" and isinstance(self.release_dates,
-                                                                  dict) and "S1" in self.release_dates:
-                        main_release_date_str = self.release_dates["S1"]
-                    elif isinstance(self.release_dates, str):  # Filme ou jogo com data única
-                        main_release_date_str = self.release_dates
-                    elif isinstance(self.release_dates, dict):  # Pegar a primeira data se for um dict genérico
-                        try:
-                            main_release_date_str = next(iter(self.release_dates.values()))
-                        except StopIteration:
-                            pass  # Fica None
-
-                    if main_release_date_str:
-                        compare_release_date = pd.to_datetime(main_release_date_str, errors='coerce')
-                        if pd.isna(compare_release_date):
-                            print(
-                                f"Data de lançamento principal ('{main_release_date_str}') é inválida. Não é possível comparar datas para {csv_filename}.")
-                        elif oldest_date_in_csv < compare_release_date:
-                            print(
-                                f"Gerando gráfico para {csv_filename} pois {oldest_date_in_csv.strftime('%Y-%m-%d')} < {compare_release_date.strftime('%Y-%m-%d')}")
-                            self.create_graph(df=df, output_graph_dir=output_graph_dir, csv_filename=csv_filename)
-                        else:
-                            print(
-                                f"Dados em {csv_filename} ({oldest_date_in_csv.strftime('%Y-%m-%d')}) não são anteriores à data de lançamento principal ({compare_release_date.strftime('%Y-%m-%d')}). Nenhum gráfico gerado.")
+                    if self.combine:
+                        df['Source'] = os.path.splitext(csv_filename)[0]  # Adiciona nome do arquivo como fonte
+                        # Seleciona apenas as colunas necessárias e faz uma cópia
+                        all_dfs_for_combine.append(df[["Month", self.metric, "Source"]].copy())
                     else:
-                        # Se não houver uma data de lançamento principal clara para comparar (ou se não for para filtrar por data), gerar o gráfico
-                        print(
-                            f"Gerando gráfico para {csv_filename} (sem filtro de data de lançamento principal ou data inválida).")
-                        self.create_graph(df=df, output_graph_dir=output_graph_dir, csv_filename=csv_filename)
+                        # Lógica original para gráficos individuais e filtro por data de lançamento
+                        oldest_date_in_csv = df["Month"].min()
+                        if pd.isna(oldest_date_in_csv):
+                            print(f"Não foi possível determinar a data mais antiga em {csv_filename}. Pulando.")
+                            continue
+
+                        main_release_date_str = None
+                        if self.media_type == "Series" and isinstance(self.release_dates, dict) and "S1" in self.release_dates:
+                            main_release_date_str = self.release_dates["S1"]
+                        elif isinstance(self.release_dates, str):
+                            main_release_date_str = self.release_dates
+                        elif isinstance(self.release_dates, dict) and self.release_dates:
+                            try:
+                                main_release_date_str = next(iter(self.release_dates.values()))
+                            except StopIteration:
+                                pass # main_release_date_str continua None
+
+                        if main_release_date_str:
+                            try:
+                                compare_release_date = pd.to_datetime(main_release_date_str, errors='raise')
+                                if oldest_date_in_csv < compare_release_date:
+                                    print(f"Gerando gráfico para {csv_filename} pois {oldest_date_in_csv.strftime('%Y-%m-%d')} < {compare_release_date.strftime('%Y-%m-%d')}")
+                                    self.create_graph(df=df, output_graph_dir=output_graph_dir, csv_filename=csv_filename)
+                                else:
+                                    print(f"Dados em {csv_filename} ({oldest_date_in_csv.strftime('%Y-%m-%d')}) não são anteriores à data de lançamento principal ({compare_release_date.strftime('%Y-%m-%d')}). Nenhum gráfico gerado.")
+                            except ValueError:
+                                print(f"Data de lançamento principal ('{main_release_date_str}') é inválida. Gerando gráfico para {csv_filename} sem filtro de data.")
+                                self.create_graph(df=df, output_graph_dir=output_graph_dir, csv_filename=csv_filename)
+                        else:
+                            print(f"Gerando gráfico para {csv_filename} (sem data de lançamento principal para filtro).")
+                            self.create_graph(df=df, output_graph_dir=output_graph_dir, csv_filename=csv_filename)
 
                 except Exception as e:
                     print(f"Erro ao processar o arquivo {csv_filepath}: {e}")
+                    import traceback
+                    traceback.print_exc() # Para depuração mais detalhada
+
+        # Após o loop, se self.combine for True e houver dados, criar o gráfico combinado
+        if self.combine and all_dfs_for_combine:
+            if not all_dfs_for_combine: # Verificação redundante, mas segura
+                print("Modo de combinação ativado, mas nenhum dado foi coletado dos arquivos CSV.")
+                return
+
+            combined_df = pd.concat(all_dfs_for_combine, ignore_index=True)
+
+            if not combined_df.empty:
+                # Ordenar por data geral para o eixo X e depois por fonte para consistência na legenda
+                combined_df.sort_values(by=["Month", "Source"], inplace=True)
+                title_metric_name = 'Média' if self.metric == "Average" else self.metric
+                combined_title = f"{title_metric_name} de Jogadores Mensais Combinada: {self.game_franchise_name}"
+                print(f"Gerando gráfico combinado para {self.game_franchise_name}...")
+                # Passar um nome de arquivo "placeholder" para csv_filename, pois o nome do gráfico combinado é gerado internamente
+                self.create_graph(df=combined_df, output_graph_dir=output_graph_dir, csv_filename="combined_data", combined_plot_title=combined_title)
+            else:
+                print("Nenhum dado para combinar após processar todos os arquivos.")
+        elif self.combine and not all_dfs_for_combine: # Caso self.combine seja True mas nenhum dado foi coletado
+             print("Modo de combinação ativado, mas nenhum dado foi coletado dos arquivos CSV.")
+
+def analisar_impacto_lancamento(caminho_csv, mes_lancamento, nome_audiovisual):
+    """
+    Analisa o impacto de um lançamento audiovisual no pico de jogadores de um jogo,
+    incluindo um teste de significância estatística (Teste t).
+
+    Args:
+        caminho_csv (str): O caminho para o arquivo CSV com os dados de jogadores.
+        mes_lancamento (str): A data de lançamento no formato 'AAAA-MM'.
+        nome_audiovisual (str): O nome do audiovisual para exibição nos resultados.
+    """
+    print(f"--- Análise de Impacto: {nome_audiovisual} ---")
+
+    try:
+        df = pd.read_csv(caminho_csv)
+        df['Peak'] = df['Peak'].str.replace(',', '', regex=False)
+        df['Peak'] = pd.to_numeric(df['Peak'], errors='coerce')
+        df['Month'] = pd.to_datetime(df['Month'], errors='coerce')
+        df = df.dropna(subset=['Month', 'Peak'])
+        df['Month'] = df['Month'].dt.to_period('M')
+        df = df.set_index('Month')
+    except FileNotFoundError:
+        print(f"Erro: Arquivo '{caminho_csv}' não encontrado.")
+        return
+    except KeyError:
+        print("Erro: O CSV deve conter as colunas 'month' e 'peak_players'.")
+        return
+
+    data_lancamento = pd.Period(mes_lancamento, 'M')
+
+    if data_lancamento not in df.index:
+        print(f"Erro: A data de lançamento '{mes_lancamento}' não foi encontrada nos dados.")
+        return
+
+    print("\n[ Análise de Impacto Imediato ]")
+    mes_anterior = data_lancamento - 1
+    if mes_anterior in df.index:
+        pico_mes_lancamento = df.loc[data_lancamento]['Peak']
+        pico_mes_anterior = df.loc[mes_anterior]['Peak']
+        variacao_imediata = ((pico_mes_lancamento - pico_mes_anterior) / pico_mes_anterior) * 100
+        print(f"Pico de jogadores no mês anterior ('{mes_anterior}'): {pico_mes_anterior:,.0f}")
+        print(f"Pico de jogadores no mês do lançamento ('{data_lancamento}'): {pico_mes_lancamento:,.0f}")
+        print(f"Variação imediata: {variacao_imediata:+.2f}%")
+    else:
+        print(f"Não foi possível calcular o impacto imediato: mês anterior ('{mes_anterior}') não encontrado.")
+
+    print("\n[ Análise de Impacto a Longo Prazo (6 meses) ]")
+    periodo_antes = df.loc[data_lancamento - 6: data_lancamento - 1]
+    periodo_depois = df.loc[data_lancamento + 1: data_lancamento + 6]
+
+    if len(periodo_antes) == 6 and len(periodo_depois) == 6:
+        media_antes = periodo_antes['Peak'].mean()
+        media_depois = periodo_depois['Peak'].mean()
+        variacao_longo_prazo = ((media_depois - media_antes) / media_antes) * 100
+        print(f"Média do pico de jogadores nos 6 meses ANTES: {media_antes:,.2f}")
+        print(f"Média do pico de jogadores nos 6 meses DEPOIS: {media_depois:,.2f}")
+        print(f"Variação na média a longo prazo: {variacao_longo_prazo:+.2f}%")
+
+
+        print("\n[ Validação Estatística (Teste t) ]")
+
+        # Realiza o Teste t de amostras independentes
+        # 'alternative='greater'' testa a hipótese de que a média do 'periodo_depois' é MAIOR que a do 'periodo_antes'
+        stat, p_value = ttest_ind(periodo_depois['Peak'], periodo_antes['Peak'],
+                                  alternative='greater')
+
+        print(f"p-valor do teste: {p_value:.4f}")
+
+        # Interpreta o resultado
+        alpha = 0.05  # Nível de significância padrão
+        if p_value < alpha:
+            print(f"Conclusão: Como o p-valor ({p_value:.4f}) é menor que {alpha}, rejeitamos a hipótese nula.")
+            print("O aumento no pico médio de jogadores é ESTATISTICAMENTE SIGNIFICATIVO.")
+        else:
+            print(
+                f"Conclusão: Como o p-valor ({p_value:.4f}) é maior que {alpha}, não podemos rejeitar a hipótese nula.")
+            print("Não há evidência estatística suficiente para afirmar que o aumento foi significativo.")
+
+    else:
+        print(
+            "Não foi possível realizar a análise de longo prazo: dados insuficientes para os períodos de 6 meses.")
+
+    print("-" * 40)
+
+
+def main():
+    arquivo_csv = 'C:/Users/thales/Documents/UFF/game-analytics/csv_data/TheWitcher/The_Witcher_3_Wild_Hunt_chart_month_data.csv'
+    # csv_dir_path = os.path.join("", arquivo_csv)
+
+    # Exemplo 1: Lançamento da 1ª Temporada da série da Netflix
+    analisar_impacto_lancamento(arquivo_csv, '2019-12', "TheWitcher (1ª Temporada Netflix)")
+
+    # Exemplo 2: Lançamento da 2ª Temporada da série da Netflix
+    analisar_impacto_lancamento(arquivo_csv, '2021-12', "TheWitcher (2ª Temporada Netflix)")
+
+
+if __name__ == '__main__':
+    main()

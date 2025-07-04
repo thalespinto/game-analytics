@@ -1,8 +1,8 @@
 
 class TheWitcher(object):
     def __init__(self):
-        self.media_name = "The Witcher"
-        self.game_franchise_name = "The Witcher"
+        self.media_name = "TheWitcher"
+        self.game_franchise_name = "TheWitcher"
         self.media_type = "Series"
         self.release_dates = {
             "S1": "December, 2019",
