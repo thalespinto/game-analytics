@@ -1,0 +1,10 @@
+--- Análise de Impacto: _1_temp ---
+
+[ Análise de Impacto Imediato ]
+Pico de jogadores no mês anterior ('2022-02'): 31,889
+Pico de jogadores no mês do lançamento ('2022-03'): 15,961
+Variação imediata: -49.95%
+
+[ Análise de Impacto a Longo Prazo (6 meses) ]
+Não foi possível realizar a análise de longo prazo: dados insuficientes para os períodos de 6 meses.
+--------------------------------------------------

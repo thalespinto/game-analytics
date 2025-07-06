@@ -1,0 +1,31 @@
+--- Análise de Impacto: filme ---
+
+[ Análise de Impacto Imediato ]
+Pico de jogadores no mês anterior ('2023-09'): 70
+Pico de jogadores no mês do lançamento ('2023-10'): 194
+Variação imediata: +177.14%
+
+[ Análise de Impacto a Longo Prazo (6 meses) ]
+---6 meses antes----
+             Peak
+count    6.000000
+mean    92.500000
+std     29.008619
+min     56.000000
+25%     72.500000
+50%     89.000000
+75%    117.500000
+max    127.000000
+---6 meses depois----
+             Peak
+count    6.000000
+mean    97.833333
+std     75.874677
+min     41.000000
+25%     46.750000
+50%     67.000000
+75%    118.000000
+max    237.000000
+p-valor do teste: 0.7576
+Conclusão: Como o p-valor (0.7576) é maior que 0.05, não há evidência estatística de um aumento significativo.
+--------------------------------------------------

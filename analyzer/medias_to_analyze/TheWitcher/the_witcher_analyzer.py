@@ -1,5 +1,5 @@
-from analyzer.analyzer import Analyzer
-from analyzer.medias_to_analyze.TheWitcher.the_witcher import TheWitcher
+from analise import Analyzer
+from analise.medias_to_analyze.TheWitcher.the_witcher import TheWitcher
 
 
 class TheWitcherAnalyzer(TheWitcher):

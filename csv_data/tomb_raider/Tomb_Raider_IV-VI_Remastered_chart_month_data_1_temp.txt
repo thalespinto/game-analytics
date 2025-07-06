@@ -1,0 +1,2 @@
+--- Análise de Impacto: _1_temp ---
+Erro: A data de lançamento '2018-03' não foi encontrada nos dados.

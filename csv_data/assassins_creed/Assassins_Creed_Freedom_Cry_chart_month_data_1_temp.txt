@@ -1,0 +1,31 @@
+--- Análise de Impacto: _1_temp ---
+
+[ Análise de Impacto Imediato ]
+Pico de jogadores no mês anterior ('2016-11'): 36
+Pico de jogadores no mês do lançamento ('2016-12'): 54
+Variação imediata: +50.00%
+
+[ Análise de Impacto a Longo Prazo (6 meses) ]
+---6 meses antes----
+            Peak
+count   6.000000
+mean   26.833333
+std     4.792355
+min    23.000000
+25%    24.250000
+50%    25.000000
+75%    27.250000
+max    36.000000
+---6 meses depois----
+            Peak
+count   6.000000
+mean   33.500000
+std    14.976648
+min    20.000000
+25%    21.750000
+50%    28.500000
+75%    44.250000
+max    55.000000
+p-valor do teste: 0.3439
+Conclusão: Como o p-valor (0.3439) é maior que 0.05, não há evidência estatística de um aumento significativo.
+--------------------------------------------------

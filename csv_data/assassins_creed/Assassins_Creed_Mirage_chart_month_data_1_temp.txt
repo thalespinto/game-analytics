@@ -1,0 +1,2 @@
+--- Análise de Impacto: _1_temp ---
+Erro: A data de lançamento '2016-12' não foi encontrada nos dados.

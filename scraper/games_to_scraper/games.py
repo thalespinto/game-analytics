@@ -1,16 +1,16 @@
 franchises = [
-    # "Castlevania",
-    # "Borderlands",
-    # "Halo",
-    # "Tomb Raider",
-    # "TheWitcher",
-    # "Fallout",
+    # "castlevania",
+    # "borderlands",
+    # "halo",
+    # "tomb_raider",
+    # "the_witcher",
+    # "fallout",
     # "MortalKombat",
-    # "Five Nights at Freddy's",
-    "Assassin's Creed"
+    # "five_nights_at_freddys",
+    "assassins_creed"
 ]
 
 games = [
-    # "Cyberpunk 2077",
+    # "cyberpunk_2077",
     # "Until Dawn",
 ]

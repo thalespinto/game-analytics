@@ -1,0 +1,31 @@
+--- Análise de Impacto: _3_temp ---
+
+[ Análise de Impacto Imediato ]
+Pico de jogadores no mês anterior ('2020-02'): 51
+Pico de jogadores no mês do lançamento ('2020-03'): 80
+Variação imediata: +56.86%
+
+[ Análise de Impacto a Longo Prazo (6 meses) ]
+---6 meses antes----
+            Peak
+count   6.000000
+mean   58.166667
+std     7.440878
+min    49.000000
+25%    52.750000
+50%    58.500000
+75%    62.000000
+max    69.000000
+---6 meses depois----
+             Peak
+count    6.000000
+mean    68.666667
+std     20.982532
+min     49.000000
+25%     53.500000
+50%     62.000000
+75%     80.250000
+max    102.000000
+p-valor do teste: 0.2598
+Conclusão: Como o p-valor (0.2598) é maior que 0.05, não há evidência estatística de um aumento significativo.
+--------------------------------------------------

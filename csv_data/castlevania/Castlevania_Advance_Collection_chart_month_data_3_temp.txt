@@ -1,0 +1,2 @@
+--- Análise de Impacto: _3_temp ---
+Erro: A data de lançamento '2020-03' não foi encontrada nos dados.

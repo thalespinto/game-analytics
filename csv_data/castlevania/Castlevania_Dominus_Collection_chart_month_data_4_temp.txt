@@ -1,0 +1,2 @@
+--- Análise de Impacto: _4_temp ---
+Erro: A data de lançamento '2021-05' não foi encontrada nos dados.

@@ -1,5 +1,5 @@
-from analyzer.analyzer import Analyzer
-from analyzer.medias_to_analyze.Fallout.fallout import Fallout
+from analise import Analyzer
+from analise.medias_to_analyze.Fallout.fallout import Fallout
 
 
 class FalloutAnalyzer(Fallout):

@@ -1,0 +1,31 @@
+--- Análise de Impacto: _1_temp ---
+
+[ Análise de Impacto Imediato ]
+Pico de jogadores no mês anterior ('2022-02'): 7,479
+Pico de jogadores no mês do lançamento ('2022-03'): 5,265
+Variação imediata: -29.60%
+
+[ Análise de Impacto a Longo Prazo (6 meses) ]
+---6 meses antes----
+               Peak
+count      6.000000
+mean   12975.666667
+std     4179.395347
+min     7479.000000
+25%    11651.750000
+50%    12419.000000
+75%    13496.750000
+max    20285.000000
+---6 meses depois----
+               Peak
+count      6.000000
+mean    7078.500000
+std     1613.015654
+min     5583.000000
+25%     6139.500000
+50%     6523.000000
+75%     7498.250000
+max    10007.000000
+p-valor do teste: 0.9978
+Conclusão: Como o p-valor (0.9978) é maior que 0.05, não há evidência estatística de um aumento significativo.
+--------------------------------------------------

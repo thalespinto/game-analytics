@@ -1,0 +1,10 @@
+--- Análise de Impacto: _1_temp ---
+
+[ Análise de Impacto Imediato ]
+Pico de jogadores no mês anterior ('2018-02'): 5
+Pico de jogadores no mês do lançamento ('2018-03'): 10
+Variação imediata: +100.00%
+
+[ Análise de Impacto a Longo Prazo (6 meses) ]
+Não foi possível realizar a análise de longo prazo: dados insuficientes para os períodos de 6 meses.
+--------------------------------------------------
