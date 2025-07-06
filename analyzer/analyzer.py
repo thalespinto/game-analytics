@@ -243,31 +243,9 @@ def analisar_impacto_lancamento(caminho_csv, mes_lancamento, nome_audiovisual):
         print(f"Média do pico de jogadores nos 6 meses ANTES: {media_antes:,.2f}")
         print(f"Média do pico de jogadores nos 6 meses DEPOIS: {media_depois:,.2f}")
 
-        # --- NOVA SEÇÃO: DIAGNÓSTICO E ESCOLHA DO TESTE ---
-        print("\n[ Validação Estatística ]")
-
-        # 1. Teste de Normalidade (Shapiro-Wilk)
-        # Hipótese Nula (H0): Os dados SÃO normalmente distribuídos.
-        shapiro_antes_stat, shapiro_antes_p = shapiro(periodo_antes['Peak'])
-        shapiro_depois_stat, shapiro_depois_p = shapiro(periodo_depois['Peak'])
-
         alpha = 0.05
-        # Se o p-valor for > 0.05, não rejeitamos a H0 (assumimos que é normal).
-        is_normal_antes = shapiro_antes_p > alpha
-        is_normal_depois = shapiro_depois_p > alpha
-
-        print(f"Diagnóstico de Normalidade (Teste Shapiro-Wilk):")
-        print(f"  - Período ANTES: p-valor={shapiro_antes_p:.4f}. Normal? {'Sim' if is_normal_antes else 'Não'}")
-        print(f"  - Período DEPOIS: p-valor={shapiro_depois_p:.4f}. Normal? {'Sim' if is_normal_depois else 'Não'}")
-
-        # 2. Escolha e Execução do Teste Apropriado
-        if is_normal_antes and is_normal_depois:
-            print("\n-> Ambos os grupos parecem normais. Usando Teste t.")
-            stat, p_value = ttest_ind(periodo_depois['Peak'], periodo_antes['Peak'], alternative='greater')
-        else:
-            print("\n-> Pelo menos um grupo não parece normal. Usando Teste Mann-Whitney U (não paramétrico).")
-            # Este teste é mais seguro para dados não normais ou amostras pequenas.
-            stat, p_value = mannwhitneyu(periodo_depois['Peak'], periodo_antes['Peak'], alternative='greater')
+        # Este teste é mais seguro para dados não normais ou amostras pequenas.
+        stat, p_value = mannwhitneyu(periodo_depois['Peak'], periodo_antes['Peak'], alternative='greater')
 
         print(f"p-valor do teste: {p_value:.4f}")
         if p_value < alpha:
